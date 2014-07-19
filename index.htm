@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <link rel="stylesheet" type="text/css" href="Content/bootstrap.min.css"/>
+        <link rel="stylesheet" type="text/css" href="Content/bootstrap-theme.min.css" />
+        <title>Twitter Bootstrap</title>
+	</head>
+	<body>
+        <ul id="tabs" class="nav nav-tabs nav-justified">
+            <li>
+                <a data-toggle="tab" href="#comics-pane"><i class="glyphicon glyphicon-book"></i> Comics</a>
+            </li>
+            <li>
+                <a data-toggle="tab" href="#characters-pane"><i class="glyphicon glyphicon-user"> </i> Characters</a>
+            </li>
+            <li>
+                <a data-toggle="tab" href="#account-pane"><i class="glyphicon glyphicon-cog"></i> Account</a>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane" id="comics-pane">
+                <div id="comics">
+                    <div class="panel panel-info">
+                        <div class="panel-heading">
+                            <h3 data-bind="text: title"></h3>
+                        </div>
+                        <div class="panel-body" data-bind="foreach: comics">
+                            <div>
+                                <a>
+                                    <img data-bind="attr:{src: imagePath}" />
+                                    <span data-bind="text: title"></span>
+                                </a>
+                                <hr />
+                            </div>
+                        </div>
+                        <div class="panel-footer">
+                            <button class="btn btn-primary" data-bind="click:scroll">Load More...</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane" id="characters-pane">
+                <div id="characters">
+                    <div class="panel panel-info">
+                        <div class="panel-heading">
+                            <h3 data-bind="text: title"></h3>
+                        </div>
+                        <div class="panel-body" data-bind="foreach: characters">
+                            <div>
+                                <a>
+                                    <img data-bind="attr:{src: imagePath}" />
+                                    <span data-bind="text: name"></span>
+                                </a>
+                                <hr />
+                            </div>
+                        </div>
+                        <div class="panel-footer">
+                            <button class="btn btn-primary" data-bind="click:scroll">Load More...</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane" id="account-pane">
+                <div class="well-sm">
+                    <form role="form">
+                        <div class="form-group">
+                            <label class="sr-only" for="username">Username</label>
+                            <input type="email" class="form-control" id="username" placeholder="Email Address">
+                        </div>
+                        <div class="form-group">
+                            <label class="sr-only" for="pwd">Password</label>
+                            <input type="password" class="form-control" id="pwd" placeholder="Password">
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">Login</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script type="text/javascript" src="Scripts/jquery-1.9.0.min.js"></script>
+        <script type="text/javascript" src="Scripts/bootstrap.min.js"></script>
+        <script type="text/javascript" src="Scripts/knockout-3.1.0.js"></script>
+        <script type="text/javascript">
+            $(function () {
+                $('#tabs a:first').tab('show');
+
+                $('#account-pane :submit').click(function (e) {
+                    e.preventDefault();
+
+                    if ($('#username').val() && $('#pwd').val()) {
+                        alert('authenticated!');
+                    } else {
+                        alert('invalid username or password');
+                    }
+                });
+            });
+
+            (function () {
+                var marvelArgs = {
+                    apikey: "162d256c9ad0fd194f9271a1ea877e55",
+                    ts: "2",
+                    hash: "610b4c8100ec85697bf5137d02cf4e79"
+                };
+
+                var marvel = {
+                    characters: {
+                        query: function (args) {
+                            var params = {};
+
+                            $.extend(params, marvelArgs, args);
+
+                            return $.getJSON('http://gateway.marvel.com/v1/public/characters', params);
+                        },
+                        get: function (id) {
+                            return $.getJSON('http://gateway.marvel.com/v1/public/characters/' + id, marvelArgs);
+                        }
+                    },
+                    comics: {
+                        query: function (args) {
+                            var params = {};
+
+                            $.extend(params, marvelArgs, args);
+
+                            return $.ajax({
+                                url: 'http://gateway.marvel.com/v1/public/comics',
+                                type: 'GET',
+                                dataType: 'jsonp',
+                                data: params,
+                                crossDomain: true,
+                                cache: true
+                                });
+                        },
+                        get: function (id) {
+                            return $.ajax({
+                                url: 'http://gateway.marvel.com/v1/public/comics/' + id,
+                                type: 'GET',
+                                dataType: 'jsonp',
+                                data: marvelArgs,
+                                crossDomain: true,
+                                cache: true
+                            });
+                        }
+                    }
+                };
+
+                function ComicsViewModel (repo) {
+                    var self = this;
+
+                    var appendComic = function (comic) {
+                        comic.imagePath = comic.thumbnail.path + '/landscape_small.' + comic.thumbnail.extension
+                        self.comics.push(comic);
+                    };
+
+                    self.title = 'Comics';
+                    self.offset = ko.observable(0);
+                    self.comics = ko.observableArray([]);
+
+                    self.scroll = function (index) {
+                        repo
+                            .comics
+                            .query({ offset: self.offset() * 20 })
+                            .success(function (response) {
+                                ko.utils.arrayForEach(response.data.results, appendComic);
+                            });
+                        self.offset(self.offset() + 1);
+                    };
+
+                    self.scroll();
+                };
+
+                function CharactersViewModel(repo) {
+                    var self = this;
+
+                    var appendCharacter = function (character) {
+                        character.imagePath = character.thumbnail.path + '/landscape_small.' + character.thumbnail.extension
+                        self.characters.push(character);
+                    };
+
+                    self.title = 'Characters';
+                    self.offset = ko.observable(0);
+                    self.characters = ko.observableArray([]);
+
+                    self.scroll = function (index) {
+                        repo
+                            .characters
+                            .query({ offset: self.offset() * 20 })
+                            .success(function (response) {
+                                ko.utils.arrayForEach(response.data.results, appendCharacter);
+                            });
+                        self.offset(self.offset() + 1);
+                    };
+
+                    self.scroll();
+                };
+
+                ko.applyBindings(new ComicsViewModel(marvel), document.getElementById('comics'));
+                ko.applyBindings(new CharactersViewModel(marvel), document.getElementById('characters'));
+            }());
+        </script>
+	</body>
+</html>
